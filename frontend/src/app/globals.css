@@ -1,0 +1,160 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand: #000000;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --dot-color: #000000;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #ffffff;
+  --dot-color: #ffffff;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Custom slider styles */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-track {
+  background: rgba(0, 0, 0, 0.1);
+  height: 8px;
+  border-radius: 4px;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #000;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin-top: -6px;
+}
+
+.slider::-moz-range-track {
+  background: rgba(0, 0, 0, 0.1);
+  height: 8px;
+  border-radius: 4px;
+}
+
+.slider::-moz-range-thumb {
+  background: #000;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: none;
+}
+
+.dark .slider::-webkit-slider-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .slider::-webkit-slider-thumb {
+  background: #fff;
+  border-color: #000;
+}
+
+.dark .slider::-moz-range-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .slider::-moz-range-thumb {
+  background: #fff;
+  border-color: #000;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+@layer utilities {
+  .logo-text {
+    @apply font-black tracking-[0.3em] text-black dark:text-white uppercase select-none;
+  }
+}
+
+/* Custom button effect inspired by deepmap */
+.btn-premium {
+  @apply relative px-10 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-sm overflow-hidden transition-all duration-500 ease-out;
+}
+
+.btn-premium::before {
+  content: '';
+  @apply absolute inset-0 bg-white/20 dark:bg-black/20 translate-y-full transition-transform duration-500 ease-out;
+}
+
+.btn-premium:hover::before {
+  @apply translate-y-0;
+}
+
+.btn-premium:hover {
+  transform: scale(1.05);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
