@@ -26,9 +26,13 @@ export type StateUpdatedPayload = {
 };
 
 export type ChatMessage = {
+    id?: string;
     user: any;
     message: string;
     timestamp: string;
+    status?: 'pending' | 'pass' | 'block';
+    moderationNote?: string;
+    ownerOnly?: boolean;
 };
 
 let stateUpdatedCb: ((payload: StateUpdatedPayload) => void) | null = null;
@@ -224,4 +228,11 @@ export function sendChatMessage(user: any, message: string) {
         message,
         timestamp: new Date().toISOString(),
     });
+}
+
+/** 拉取聊天历史（连接时服务端会推一次；晚挂载的 ChatRoom / 移动端 Tab 需主动请求） */
+export function requestChatHistory() {
+    const s = getSocket();
+    if (!s?.connected) return;
+    s.emit('get_chat_history');
 }

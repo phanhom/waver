@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Music } from 'lucide-react';
 import { useAuthStore, usePlayerStore } from '@/lib/store';
-import { getSocket, ChatMessage, sendChatMessage } from '@/lib/socket';
+import { getSocket, ChatMessage, sendChatMessage, requestChatHistory } from '@/lib/socket';
 
 export default function ChatRoom() {
   const { user, requireLogin } = useAuthStore();
@@ -24,19 +24,33 @@ export default function ChatRoom() {
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages]);
 
   // Listen for chat messages
   useEffect(() => {
     if (!socket) return;
 
-    const handleChatMessage = (message: ChatMessage) => {
+    const upsertMessage = (message: ChatMessage) => {
       setMessages(prev => {
-        const updated = [...prev, message];
-        // Ensure max 200 messages
-        return updated.slice(-200);
+        if (message.id) {
+          const idx = prev.findIndex(m => m.id === message.id);
+          if (idx >= 0) {
+            const merged = [...prev];
+            merged[idx] = { ...merged[idx], ...message };
+            return merged.slice(-200);
+          }
+        }
+        return [...prev, message].slice(-200);
       });
+    };
+
+    const handleChatMessage = (message: ChatMessage) => {
+      upsertMessage(message);
+    };
+
+    const handleChatStatus = (message: ChatMessage) => {
+      upsertMessage(message);
     };
 
     const handleChatHistory = (messageHistory: ChatMessage[]) => {
@@ -44,16 +58,23 @@ export default function ChatRoom() {
       setMessages(messageHistory.slice(-200));
     };
 
-    const handleChatError = (data: { message?: string }) => {
-      if (data?.message) alert(data.message);
+    const handleChatError = (_data: { message?: string }) => {
+      // 审核未通过 / 限流等：不弹 alert，状态已在气泡上展示（block / 审核中等）
     };
 
     socket.on('chat_message', handleChatMessage);
+    socket.on('chat_message_status', handleChatStatus);
     socket.on('chat_history', handleChatHistory);
     socket.on('chat_error', handleChatError);
 
+    const pullHistory = () => requestChatHistory();
+    pullHistory();
+    socket.on('connect', pullHistory);
+
     return () => {
+      socket.off('connect', pullHistory);
       socket.off('chat_message', handleChatMessage);
+      socket.off('chat_message_status', handleChatStatus);
       socket.off('chat_history', handleChatHistory);
       socket.off('chat_error', handleChatError);
     };
@@ -91,7 +112,7 @@ export default function ChatRoom() {
   return (
     <div className="flex flex-col h-full bg-black/5 dark:bg-white/5 rounded-3xl border border-black/10 dark:border-white/10 overflow-hidden">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 no-scrollbar">
+      <div className="flex-1 overflow-y-auto p-3 md:p-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-black/20 dark:text-white/20 text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.3em]">No messages yet</p>
@@ -99,32 +120,66 @@ export default function ChatRoom() {
           </div>
         ) : (
           messages.map((msg, index) => {
+            const prevMsg = index > 0 ? messages[index - 1] : null;
+            const isConsecutive = prevMsg && String(prevMsg.user?.userId) === String(msg.user?.userId);
+            
             const listeningSong = getUserListening(msg.user.userId);
+            const isOwn = String(msg.user?.userId) === String(user?.userId);
+            const status = msg.status || 'pass';
+            const statusStyles =
+              status === 'pending'
+                ? 'bg-gray-200 text-gray-600 dark:bg-white/10 dark:text-white/50'
+                : status === 'block'
+                ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300'
+                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300';
+            const statusLabel =
+              status === 'pending' ? '审核中' : status === 'block' ? '未通过' : '通过';
+            
             return (
-              <div key={index} className="flex items-start gap-3 group animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <img
-                  src={msg.user.avatar || msg.user.avatarUrl}
-                  alt={msg.user.name || msg.user.nickname}
-                  className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border border-black/10 dark:border-white/10 flex-shrink-0"
-                />
+              <div key={index} className={`flex items-start gap-2 group animate-in fade-in slide-in-from-bottom-1 duration-200 ${isConsecutive ? 'mt-0.5' : 'mt-1'}`}>
+                <div className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0">
+                  {!isConsecutive ? (
+                    <img
+                      src={msg.user.avatar || msg.user.avatarUrl}
+                      alt={msg.user.name || msg.user.nickname}
+                      className="w-full h-full rounded-full object-cover border border-black/10 dark:border-white/10"
+                    />
+                  ) : (
+                    <div className="w-full h-full opacity-0" />
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-                    <span className="text-[11px] font-black uppercase tracking-wide text-black/80 dark:text-white/80">
-                      {msg.user.name || msg.user.nickname}
-                    </span>
-                    {listeningSong && (
-                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-black/5 dark:bg-white/10 rounded-md">
-                        <Music size={8} className="text-black/40 dark:text-white/40" />
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-black/40 dark:text-white/40 truncate max-w-[120px]">
-                          {listeningSong}
+                  {!isConsecutive && (
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mb-0.5">
+                      <span className="text-[11px] font-black uppercase tracking-wide text-black/80 dark:text-white/80">
+                        {msg.user.name || msg.user.nickname}
+                      </span>
+                      {isOwn && status !== 'pass' && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold ${statusStyles}`}>
+                          {statusLabel}
                         </span>
-                      </div>
+                      )}
+                      {listeningSong && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-black/5 dark:bg-white/10 rounded-md">
+                          <Music size={8} className="text-black/40 dark:text-white/40" />
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-black/40 dark:text-white/40 truncate max-w-[120px]">
+                            {listeningSong}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="relative group/bubble max-w-full inline-block">
+                    <div className={`px-2.5 py-1.5 bg-white/50 dark:bg-black/50 rounded-2xl border border-black/5 dark:border-white/5 inline-block max-w-full shadow-sm ${isConsecutive ? 'rounded-tl-2xl' : 'rounded-tl-none'}`}>
+                      <p className="text-[13px] text-black dark:text-white break-words whitespace-pre-wrap leading-relaxed font-medium">
+                        {msg.message}
+                      </p>
+                    </div>
+                    {isConsecutive && isOwn && status !== 'pass' && (
+                      <span className={`absolute -right-12 top-1/2 -translate-y-1/2 text-[8px] font-bold uppercase opacity-50 ${status === 'block' ? 'text-red-500' : ''}`}>
+                        {statusLabel}
+                      </span>
                     )}
-                  </div>
-                  <div className="mt-1 px-3 py-2 bg-white/50 dark:bg-black/50 rounded-2xl rounded-tl-none border border-black/5 dark:border-white/5 inline-block max-w-full">
-                    <p className="text-[13px] text-black dark:text-white break-words whitespace-pre-wrap leading-relaxed font-medium">
-                      {msg.message}
-                    </p>
                   </div>
                 </div>
               </div>

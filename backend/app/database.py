@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy import text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from .config import get_settings
@@ -54,4 +55,19 @@ def get_db():
 def init_db():
     if engine is not None:
         Base.metadata.create_all(bind=engine)
+        # Lightweight migration for existing SQLite DBs.
+        try:
+            if settings.DB_URL.startswith("sqlite"):
+                with engine.connect() as conn:
+                    rows = conn.execute(text("PRAGMA table_info(chat_messages)")).fetchall()
+                    existing_cols = {r[1] for r in rows}
+                    if "moderation_status" not in existing_cols:
+                        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN moderation_status VARCHAR(32) DEFAULT 'pass'"))
+                    if "moderation_note" not in existing_cols:
+                        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN moderation_note TEXT"))
+                    if "visible_to_all" not in existing_cols:
+                        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN visible_to_all INTEGER DEFAULT 1"))
+                    conn.commit()
+        except Exception as e:
+            print(f"Chat message migration warning: {e}")
         print("Database tables initialized")

@@ -50,12 +50,19 @@ class ChatMessage(Base):
     user_data = Column(JSON)
     message = Column(Text)
     timestamp = Column(String(64), index=True)
+    moderation_status = Column(String(32), index=True, default="pass")  # pending/pass/block
+    moderation_note = Column(Text, nullable=True)
+    visible_to_all = Column(Integer, default=1)  # 1: broadcastable, 0: owner-only
     
     def to_dict(self):
         return {
+            "id": str(self.id),
             "user": self.user_data,
             "message": self.message,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
+            "status": self.moderation_status or "pass",
+            "moderationNote": self.moderation_note or "",
+            "visibleToAll": bool(self.visible_to_all),
         }
 
 class Comment(Base):

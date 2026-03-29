@@ -24,6 +24,9 @@ class Settings:
     AI_API_KEY: str = ""
     AI_MODEL_NAME: str = "gpt-3.5-turbo"
     AI_MODERATION_PROMPT: str = "You are a chat moderator. If the following message contains illegal, offensive, or harmful content, output 'BLOCK'. Otherwise, output 'PASS'. Only output one of these two words. Message: "
+    AI_TIMEOUT_SECONDS: float = 12.0
+    AI_FAIL_OPEN: bool = False
+    AI_TRUST_ENV: bool = False
 
     # Rate limiting (limits library via middleware + socket chat window)
     RATE_LIMIT_ENABLED: bool = True
@@ -71,6 +74,9 @@ class Settings:
                 self.AI_API_KEY = ai_config.get("api_key", self.AI_API_KEY)
                 self.AI_MODEL_NAME = ai_config.get("model_name", self.AI_MODEL_NAME)
                 self.AI_MODERATION_PROMPT = ai_config.get("moderation_prompt", self.AI_MODERATION_PROMPT)
+                self.AI_TIMEOUT_SECONDS = float(ai_config.get("timeout_seconds", self.AI_TIMEOUT_SECONDS))
+                self.AI_FAIL_OPEN = bool(ai_config.get("fail_open", self.AI_FAIL_OPEN))
+                self.AI_TRUST_ENV = bool(ai_config.get("trust_env", self.AI_TRUST_ENV))
 
                 rl = config.get("rate_limit", {})
                 self.RATE_LIMIT_ENABLED = rl.get("enabled", self.RATE_LIMIT_ENABLED)
@@ -102,6 +108,12 @@ class Settings:
             self.AI_API_KEY = os.getenv('AI_API_KEY')
         if os.getenv('AI_MODEL_NAME'):
             self.AI_MODEL_NAME = os.getenv('AI_MODEL_NAME')
+        if os.getenv('AI_TIMEOUT_SECONDS'):
+            self.AI_TIMEOUT_SECONDS = float(os.getenv('AI_TIMEOUT_SECONDS'))
+        if os.getenv('AI_FAIL_OPEN') is not None:
+            self.AI_FAIL_OPEN = os.getenv('AI_FAIL_OPEN', '').lower() in ('1', 'true', 'yes')
+        if os.getenv('AI_TRUST_ENV') is not None:
+            self.AI_TRUST_ENV = os.getenv('AI_TRUST_ENV', '').lower() in ('1', 'true', 'yes')
 
         if os.getenv('RATE_LIMIT_ENABLED') is not None:
             self.RATE_LIMIT_ENABLED = os.getenv('RATE_LIMIT_ENABLED', '').lower() in ('1', 'true', 'yes')

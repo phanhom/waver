@@ -843,7 +843,7 @@ export default function Home() {
 
             <div className={`grid grid-cols-12 gap-12 max-w-7xl mx-auto w-full flex-1 min-h-0 transition-all duration-300 ${currentSong ? 'pb-32' : 'pb-12'}`}>
               {/* Left: ChatRoom */}
-              <div className="col-span-4 border-r border-black/5 pr-12 flex flex-col h-full">
+              <div className="col-span-4 border-r border-black/5 pr-12 flex flex-col h-full min-h-0">
                 <div className="flex items-center gap-3 mb-8 flex-shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
                   <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Chat Room</h2>
@@ -854,23 +854,23 @@ export default function Home() {
               </div>
 
               {/* Center: Live Feed */}
-              <div className="col-span-4 flex flex-col h-full">
+              <div className="col-span-4 flex flex-col h-full min-h-0">
                 <div className="flex items-center gap-3 mb-8 flex-shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-black/20" />
                   <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Live Now</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto no-scrollbar">
+                <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
                   <LivingList />
                 </div>
               </div>
 
               {/* Right: Library */}
-              <div className="col-span-4 border-l border-black/5 pl-12 flex flex-col h-full">
+              <div className="col-span-4 border-l border-black/5 pl-12 flex flex-col h-full min-h-0">
                 <div className="flex items-center gap-3 mb-8 flex-shrink-0">
                   <Plus size={16} className="opacity-20" />
                   <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Library</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto no-scrollbar">
+                <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
                   <LibrarySection />
                 </div>
               </div>
@@ -895,18 +895,18 @@ export default function Home() {
             {/* 移动端内容区域 */}
             <div className={`flex-1 min-h-0 pt-20 px-4 flex flex-col transition-all duration-300 ${currentSong ? 'pb-36' : 'pb-24'}`}>
               {activeTab === 'live' && (
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col h-full min-h-0">
                   <div className="flex items-center gap-3 mb-6 flex-shrink-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-black dark:bg-white animate-pulse" />
                     <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Live Now</h2>
                   </div>
-                  <div className="flex-1 overflow-y-auto no-scrollbar">
+                  <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
                     <LivingList />
                   </div>
                 </div>
               )}
               {activeTab === 'waves' && (
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col h-full min-h-0">
                   <div className="flex items-center gap-3 mb-6 flex-shrink-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-black dark:bg-white animate-pulse" />
                     <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Chat Room</h2>
@@ -917,18 +917,18 @@ export default function Home() {
                 </div>
               )}
               {activeTab === 'library' && (
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col h-full min-h-0">
                   <div className="flex items-center gap-3 mb-6 flex-shrink-0">
                     <Plus size={16} className="opacity-20" />
                     <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Library</h2>
                   </div>
-                  <div className="flex-1 overflow-y-auto no-scrollbar">
+                  <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
                     <LibrarySection />
                   </div>
                 </div>
               )}
               {activeTab === 'settings' && (
-                <div className="flex-1 overflow-y-auto no-scrollbar">
+                <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
                   <MobileSettingsPage />
                 </div>
               )}

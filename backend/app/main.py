@@ -1,3 +1,14 @@
+import logging
+import os
+
+# Ensure app loggers (e.g. app.services.ai) show INFO on the console
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 import socketio
 import uvicorn
 from fastapi import FastAPI
@@ -7,7 +18,6 @@ from .config import get_settings
 from .database import init_db, SessionLocal
 from .models import SharedWave, ChatMessage, Comment
 from sqlalchemy import desc
-import os
 from .services.ai import ai_service
 from .rate_limiting import ApiRateLimitMiddleware, allow_chat_message
 
@@ -65,7 +75,14 @@ def load_shared_waves():
 def load_chat_messages():
     db = get_db_session()
     try:
-        messages = db.query(ChatMessage).order_by(desc(ChatMessage.timestamp)).limit(200).all()
+        messages = (
+            db.query(ChatMessage)
+            .filter(ChatMessage.visible_to_all == 1)
+            .filter(ChatMessage.moderation_status == "pass")
+            .order_by(desc(ChatMessage.timestamp))
+            .limit(200)
+            .all()
+        )
         return [m.to_dict() for m in reversed(messages)]
     except Exception as e:
         print(f"Error loading chat from DB: {e}")
@@ -214,31 +231,30 @@ async def chat_message(sid, data):
         await sio.emit('chat_error', {'message': '发送过于频繁，请稍后再试。'}, to=sid)
         return
 
-    message_text = data.get('message', '')
+    message_text = (data.get('message') or '').strip()
+    if not message_text:
+        return
     
     # 1. Length limit check (200 chars)
     if len(message_text) > 200:
         print(f"Chat message from {sid} blocked: too long ({len(message_text)} chars)")
         return
 
-    # 2. AI Moderation check
-    is_allowed = await ai_service.moderate_content(message_text)
-    if not is_allowed:
-        print(f"Chat message from {sid} blocked by AI moderation: {message_text}")
-        # Optionally notify the user
-        await sio.emit('chat_error', {'message': '您的消息包含违规内容，已被系统拦截。'}, to=sid)
-        return
-
+    # 2. Persist first (pending), then moderate asynchronously.
+    message_row = None
     db = get_db_session()
     try:
-        new_msg = ChatMessage(
+        message_row = ChatMessage(
             user_id=str(data.get('user', {}).get('userId')),
             user_data=data.get('user'),
             message=message_text,
-            timestamp=data.get('timestamp')
+            timestamp=data.get('timestamp'),
+            moderation_status='pending',
+            visible_to_all=0,
         )
-        db.add(new_msg)
+        db.add(message_row)
         db.commit()
+        db.refresh(message_row)
         
         # Cleanup old messages (keep 200)
         count = db.query(ChatMessage).count()
@@ -250,11 +266,51 @@ async def chat_message(sid, data):
     except Exception as e:
         print(f"Error saving chat to DB: {e}")
         db.rollback()
+        await sio.emit('chat_error', {'message': '消息写入失败，请重试。'}, to=sid)
+        return
     finally:
         db.close()
-    
-    await sio.emit('chat_message', data)
-    print(f"Chat message from {sid}: {data.get('user', {}).get('nickname')}: {data.get('message')}")
+
+    pending_payload = message_row.to_dict()
+    pending_payload["ownerOnly"] = True
+    await sio.emit('chat_message_status', pending_payload, to=sid)
+    print(f"Chat pending from {sid}: {data.get('user', {}).get('nickname')}: {message_text}")
+
+    # 3. Run AI moderation. Update status and visibility.
+    is_allowed = await ai_service.moderate_content(message_text)
+    db = get_db_session()
+    try:
+        row = db.query(ChatMessage).filter(ChatMessage.id == message_row.id).first()
+        if not row:
+            return
+
+        if is_allowed:
+            row.moderation_status = 'pass'
+            row.visible_to_all = 1
+            db.commit()
+            db.refresh(row)
+
+            pass_payload = row.to_dict()
+            pass_payload["ownerOnly"] = False
+            await sio.emit('chat_message', pass_payload)
+            print(f"Chat PASS from {sid}: {data.get('user', {}).get('nickname')}: {message_text}")
+        else:
+            row.moderation_status = 'block'
+            row.visible_to_all = 0
+            row.moderation_note = 'blocked_by_ai'
+            db.commit()
+            db.refresh(row)
+
+            block_payload = row.to_dict()
+            block_payload["ownerOnly"] = True
+            await sio.emit('chat_message_status', block_payload, to=sid)
+            await sio.emit('chat_error', {'message': '您的消息包含违规内容，已被系统拦截。'}, to=sid)
+            print(f"Chat BLOCK from {sid}: {data.get('user', {}).get('nickname')}: {message_text}")
+    except Exception as e:
+        print(f"Error updating chat moderation result: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 @sio.event
 async def get_chat_history(sid):

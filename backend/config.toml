@@ -26,11 +26,19 @@ name = "waver"
 # 硅基流动示例：api_base = "https://api.siliconflow.cn/v1"
 # 模型名与控制台一致，例如：Qwen/Qwen3.5-4B
 [ai]
-enabled = false
+# 必须为 true 才会调用大模型审核；false 时直接放行且只打 [AI moderation] OFF 日志
+enabled = true
 api_base = "https://api.siliconflow.cn/v1"
+# 建议用环境变量 AI_API_KEY，勿把真实 key 提交到仓库
 api_key = ""
-model_name = "Qwen/Qwen3.5-4B"
+model_name = "Qwen/Qwen3-8B"
 moderation_prompt = "You are a chat moderator. If the following message contains illegal, offensive, or harmful content, output 'BLOCK'. Otherwise, output 'PASS'. Only output one of these two words. Message: "
+# AI 请求超时秒数；超时后由 fail_open 决定是否放行
+timeout_seconds = 12
+# false = 失败就拦截（更安全）；true = 失败就放行（可用性更高）
+fail_open = false
+# false = 不读取系统代理环境变量（避免 http_proxy 导致的超时）
+trust_env = false
 
 # 防刷 / 防滥用：基于 limits（slowapi 同源）的滑动窗口限流
 # api_qps：每个 IP 对 /api/* REST 每秒最大请求数（/socket.io 与文档路径不计入）
