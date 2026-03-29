@@ -10,7 +10,7 @@ interface Song {
   url?: string;
 }
 
-interface PlayerStore {
+export interface PlayerStore {
   currentSong: Song | null;
   playlist: Song[];
   isPlaying: boolean;
@@ -150,24 +150,39 @@ export const usePlayerStore = create<PlayerStore>()(
 interface AuthStore {
   user: any | null;
   token: string | null;
+  loginModalOpen: boolean;
   setUser: (user: any | null) => void;
   setToken: (token: string | null) => void;
   logout: () => void;
+  openLoginModal: () => void;
+  closeLoginModal: () => void;
+  /** Returns true if logged in; opens login modal and returns false otherwise */
+  requireLogin: () => boolean;
 }
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
+      loginModalOpen: false,
       setUser: (user) => set({ user }),
       setToken: (token) => set({ token }),
       logout: () => {
         set({ user: null, token: null });
-      }
+      },
+      openLoginModal: () => set({ loginModalOpen: true }),
+      closeLoginModal: () => set({ loginModalOpen: false }),
+      requireLogin: () => {
+        const { user } = get();
+        if (user?.userId) return true;
+        set({ loginModalOpen: true });
+        return false;
+      },
     }),
     {
       name: 'waver-auth',
+      partialize: (state) => ({ user: state.user, token: state.token }),
     }
   )
 );

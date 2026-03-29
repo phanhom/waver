@@ -1,107 +1,100 @@
-from fastapi import APIRouter, HTTPException, Query, Form
+from fastapi import APIRouter, HTTPException, Query, Form, Request
 from ..services.netease import netease_service
 from typing import List, Optional
 
 router = APIRouter()
+
+def _get_real_ip(request: Request) -> Optional[str]:
+    """Extract the client's real IP from proxy headers or direct connection."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip
+    if request.client:
+        return request.client.host
+    return None
+
 @router.get("/search")
-async def search(keywords: str, limit: int = 10, type: int = 1):
-    return await netease_service.search(keywords, limit, type)
+async def search(request: Request, keywords: str, limit: int = 10, type: int = 1):
+    return await netease_service.search(keywords, limit, type, real_ip=_get_real_ip(request))
 
 
 @router.get("/playlist/{playlist_id}")
-async def get_playlist(playlist_id: str, cookie: Optional[str] = Query(None)):
-    data = await netease_service.get_playlist_detail(playlist_id, cookie)
+async def get_playlist(request: Request, playlist_id: str, cookie: Optional[str] = Query(None)):
+    data = await netease_service.get_playlist_detail(playlist_id, cookie, real_ip=_get_real_ip(request))
     if data.get("code") != 200:
         raise HTTPException(status_code=400, detail=data.get("message", "Failed to fetch playlist"))
     return data
 
 
 @router.get("/songs")
-async def get_songs(ids: str = Query(...), cookie: Optional[str] = Query(None)):
+async def get_songs(request: Request, ids: str = Query(...), cookie: Optional[str] = Query(None)):
     id_list = ids.split(",")
-    data = await netease_service.get_song_detail(id_list, cookie)
+    data = await netease_service.get_song_detail(id_list, cookie, real_ip=_get_real_ip(request))
     if data.get("code") != 200:
         raise HTTPException(status_code=400, detail=data.get("message", "Failed to fetch songs"))
     return data
 
 @router.get("/song/url/{song_id}")
-async def get_song_url(song_id: str, level: str = "standard", cookie: Optional[str] = Query(None)):
-    data = await netease_service.get_song_url(song_id, level, cookie)
+async def get_song_url(request: Request, song_id: str, level: str = "standard", cookie: Optional[str] = Query(None)):
+    data = await netease_service.get_song_url(song_id, level, cookie, real_ip=_get_real_ip(request))
     if data.get("code") != 200:
         raise HTTPException(status_code=400, detail=data.get("message", "Failed to fetch song URL"))
     return data
 
 @router.get("/login/qr/key")
-async def get_qr_key():
+async def get_qr_key(request: Request):
     try:
-        print("API: Getting QR key...")
-        key = await netease_service.get_qr_key()
-        print(f"API: Got QR key: {key}")
+        key = await netease_service.get_qr_key(real_ip=_get_real_ip(request))
         return {"unikey": key}
     except Exception as e:
-        print(f"API: QR key error: {e}")
         return {"code": 500, "message": str(e)}
 
 @router.get("/login/qr/image")
-async def get_qr_image(key: str):
+async def get_qr_image(request: Request, key: str):
     try:
-        print(f"API: Getting QR image for key: {key}")
-        img = await netease_service.get_qr_image(key)
-        print(f"API: Got QR image: {img[:50]}...")
+        img = await netease_service.get_qr_image(key, real_ip=_get_real_ip(request))
         return {"qrimg": img}
     except Exception as e:
-        print(f"API: QR image error: {e}")
         return {"code": 500, "message": str(e)}
 
 @router.get("/login/qr/check")
-async def check_qr(key: str):
+async def check_qr(request: Request, key: str):
     try:
-        print(f"API: Checking QR status for key: {key}")
-        result = await netease_service.check_qr_status(key)
-        print(f"API: QR check result: {result}")
+        result = await netease_service.check_qr_status(key, real_ip=_get_real_ip(request))
         return result
     except Exception as e:
-        print(f"API: QR check error: {e}")
         return {"code": 500, "message": str(e)}
 
 @router.get("/user/account")
-async def get_account(cookie: str = Query(...)):
-    return await netease_service.get_account_info(cookie)
+async def get_account(request: Request, cookie: str = Query(...)):
+    return await netease_service.get_account_info(cookie, real_ip=_get_real_ip(request))
 
 @router.get("/user/playlists")
-async def get_user_playlists(uid: str, cookie: Optional[str] = Query(None)):
-    return await netease_service.get_user_playlists(uid, cookie)
+async def get_user_playlists(request: Request, uid: str, cookie: Optional[str] = Query(None)):
+    return await netease_service.get_user_playlists(uid, cookie, real_ip=_get_real_ip(request))
 
 @router.get("/lyric")
-async def get_lyrics(id: str, cookie: Optional[str] = Query(None)):
-    print(f"API: Fetching lyrics for song ID: {id}")
-    data = await netease_service.get_lyrics(id, cookie)
-    print(f"API: Lyrics response code: {data.get('code')}")
-    print(f"API: Lyrics response keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}")
-
+async def get_lyrics(request: Request, id: str, cookie: Optional[str] = Query(None)):
+    data = await netease_service.get_lyrics(id, cookie, real_ip=_get_real_ip(request))
     if data.get("code") != 200:
-        print(f"API: Lyrics fetch failed: {data.get('message', 'Unknown error')}")
         raise HTTPException(status_code=400, detail=data.get("message", "Failed to fetch lyrics"))
     return data
 
 @router.post("/captcha/sent")
-async def send_captcha(phone: str = Form(...), ctcode: Optional[str] = Form(None)):
-    data = await netease_service.send_captcha(phone, ctcode)
-    if data.get("code") != 200:
-        raise HTTPException(status_code=400, detail=data.get("message", "Failed to send captcha"))
-    return data
+async def send_captcha(request: Request, phone: str = Form(...), ctcode: Optional[str] = Form(None)):
+    return await netease_service.send_captcha(phone, ctcode, real_ip=_get_real_ip(request))
 
 @router.post("/login/cellphone")
-async def login_cellphone(phone: str = Form(...), password: Optional[str] = Form(None),
+async def login_cellphone(request: Request, phone: str = Form(...), password: Optional[str] = Form(None),
                          captcha: Optional[str] = Form(None), countrycode: Optional[str] = Form(None)):
     if not password and not captcha:
         raise HTTPException(status_code=400, detail="Either password or captcha is required")
 
-    data = await netease_service.login_with_cellphone(phone, password, captcha, countrycode)
-    if data.get("code") != 200:
-        raise HTTPException(status_code=400, detail=data.get("message", "Login failed"))
-    return data
+    return await netease_service.login_with_cellphone(phone, password, captcha, countrycode, real_ip=_get_real_ip(request))
 
 @router.get("/user/detail")
-async def get_user_detail(uid: str, cookie: Optional[str] = Query(None)):
-    return await netease_service.get_user_detail(uid, cookie)
+async def get_user_detail(request: Request, uid: str, cookie: Optional[str] = Query(None)):
+    return await netease_service.get_user_detail(uid, cookie, real_ip=_get_real_ip(request))

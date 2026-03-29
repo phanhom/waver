@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sun, Moon, Droplets, Grid, LogOut, Send } from 'lucide-react';
-import { usePlayerStore } from '@/lib/store';
-import { useAuthStore } from '@/lib/store';
+import { usePlayerStore, useAuthStore } from '@/lib/store';
 import { getSocket, ChatMessage, sendChatMessage } from '@/lib/socket';
 
 export default function MobileSettingsPage() {
@@ -15,7 +14,7 @@ export default function MobileSettingsPage() {
     setMusicOceanDotDensity 
   } = usePlayerStore();
   
-  const { user, logout } = useAuthStore();
+  const { user, logout, requireLogin } = useAuthStore();
   const socket = getSocket();
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -52,13 +51,12 @@ export default function MobileSettingsPage() {
   }, [socket]);
 
   const sendMessage = (message: string) => {
-    if (!message.trim() || !user) return;
-    
+    if (!message.trim()) return;
+    if (!requireLogin()) return;
     if (message.length > 1000) {
       alert('消息长度不能超过1000字符');
       return;
     }
-    
     sendChatMessage(user, message.trim());
     setInputMessage('');
   };

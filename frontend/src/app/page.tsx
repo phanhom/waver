@@ -20,7 +20,7 @@ import MobilePlayer from '@/components/MobilePlayer';
 import MobileSettingsPage from '@/components/MobileSettingsPage';
 
 function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) {
-  const { user } = useAuthStore();
+  const { user, requireLogin } = useAuthStore();
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState<any[]>([]);
   const [isLiked, setIsLiked] = useState(false);
@@ -35,6 +35,8 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
     }
     
     const s = getSocket();
+    if (!s) return;
+
     const handleCommentsLoaded = (data: any) => {
       if (String(data.resourceId) === String(resourceId)) {
         setComments(data.comments);
@@ -45,10 +47,10 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
         setComments(prev => [newComment, ...prev]);
       }
     };
-    
+
     s.on('comments_loaded', handleCommentsLoaded);
     s.on('comment_added', handleCommentAdded);
-    
+
     return () => {
       s.off('comments_loaded', handleCommentsLoaded);
       s.off('comment_added', handleCommentAdded);
@@ -64,13 +66,14 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
 
   const handleSendComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!comment.trim() || !user) return;
+    if (!comment.trim()) return;
+    if (!requireLogin()) return;
     addComment(resourceId, resourceType, comment, user);
     setComment('');
   };
 
   const handleLike = () => {
-    if (!user) return;
+    if (!requireLogin()) return;
     if (isLiked) {
       unlikeWave(wave.id, wave.playlist?.id, wave.song?.id, user.userId);
       setIsLiked(false);
@@ -83,7 +86,7 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
   };
 
   const handleDelete = () => {
-    if (user && confirm('Are you sure you want to delete this share?')) {
+    if (requireLogin() && confirm('Are you sure you want to delete this share?')) {
       cancelWave(wave.playlist?.id || null, wave.song?.id || null, user.userId);
       onClose();
     }
@@ -246,7 +249,7 @@ function DiscoveryList() {
 
 function LivingList() {
   const { activeListeners, followingSid, setFollowingSid, setCurrentSong } = usePlayerStore();
-  const { user: currentUser } = useAuthStore();
+  const { user: currentUser, requireLogin } = useAuthStore();
   const { currentSong, isPlaying } = usePlayerStore();
 
   // 创建包含当前用户的完整用户列表
@@ -333,14 +336,11 @@ function LivingList() {
                     if (followingSid === leader.sid) {
                       setFollowingSid(null);
                     } else {
+                      if (!requireLogin()) return;
                       if (leader.sid === 'current-user') return;
-                      // 退出之前的跟随
                       setFollowingSid(leader.sid);
                       setCurrentSong(leader.song);
-                      // 如果正在播放，同步到对方的播放位置
                       if (leader.song && leader.state === 'playing') {
-                        // 这里需要通过socket同步时间点
-                        // 暂时先同步歌曲，时间同步可以通过后续的state更新实现
                         playSong(leader.song, false);
                       }
                     }
@@ -355,6 +355,7 @@ function LivingList() {
             {leader.song && (
               <div className="ml-9 p-3 bg-black/[0.03] dark:bg-white/[0.03] rounded-xl flex items-center gap-3 group cursor-pointer" onClick={() => { 
                 if (leader.sid !== 'current-user') {
+                  if (!requireLogin()) return;
                   setCurrentSong(leader.song);
                   playSong(leader.song);
                 }
@@ -384,7 +385,7 @@ function LivingList() {
 
 function LibrarySection() {
   const { userPlaylists, setUserPlaylists, setCurrentSong, setPlaylist } = usePlayerStore();
-  const { user, token } = useAuthStore();
+  const { user, token, requireLogin } = useAuthStore();
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [tracks, setTracks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -434,6 +435,7 @@ function LibrarySection() {
 
   const handleSharePlaylist = async (p: any, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!requireLogin()) return;
     let currentTracks = tracks;
 
     // If tracks for THIS playlist aren't loaded, fetch them first
@@ -465,10 +467,9 @@ function LibrarySection() {
   };
 
   const handleShareSong = (track: any) => {
-    if (user) {
-      broadcastWave(null, [track], user);
-      setContextMenu(null);
-    }
+    if (!requireLogin()) return;
+    broadcastWave(null, [track], user);
+    setContextMenu(null);
   };
 
   const handleContextMenu = (e: React.MouseEvent, track: any) => {
@@ -536,7 +537,7 @@ function LibrarySection() {
             ) : tracks.map((t, i) => (
               <div
                 key={t.id}
-                onClick={() => { setCurrentSong(t); setPlaylist(tracks); playSong(t); }}
+                onClick={() => { if (!requireLogin()) return; setCurrentSong(t); setPlaylist(tracks); playSong(t); }}
                 onContextMenu={(e) => handleContextMenu(e, t)}
                 className="group flex items-center gap-4 p-2 rounded-lg hover:bg-black/[0.03] dark:hover:bg-white/[0.03] cursor-pointer transition-all"
               >
@@ -572,7 +573,7 @@ function LibrarySection() {
 
 export default function Home() {
   const [forceUpdate, setForceUpdate] = useState(0);
-  const { user, token, setUser, setToken, logout } = useAuthStore();
+  const { user, token, setUser, setToken, logout, loginModalOpen, closeLoginModal, requireLogin } = useAuthStore();
   
   // 移动端标签页状态
   const [activeTab, setActiveTab] = useState<'live' | 'waves' | 'library' | 'settings'>('live');
@@ -709,8 +710,8 @@ export default function Home() {
   //   return () => clearTimeout(timer);
   // }, [urlInput]);
 
-  // Play song from search results
   const playSearchSong = (song: any) => {
+    if (!requireLogin()) return;
     const formattedSong = {
       id: String(song.id),
       name: song.name,
@@ -723,9 +724,9 @@ export default function Home() {
     setSearchResults([]);
   };
 
-  // 播放URL中的歌曲
   const handleUrlPlay = async () => {
     if (!urlInput) return;
+    if (!requireLogin()) return;
     const match = urlInput.match(/id=(\d+)/);
     const songId = match ? match[1] : urlInput.trim();
 
@@ -756,29 +757,28 @@ export default function Home() {
   };
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-white dark:bg-black text-black dark:text-white">
+    <main className="relative w-full h-screen overflow-hidden bg-white dark:bg-black text-black dark:text-white">
       <Background />
       <MusicOcean />
 
-      {(!user || !user.userId || user.userId === '') ? (
-        <LoginSection key={user?.userId || 'login'} />
-      ) : (
-        <>
-          {/* 桌面端布局 */}
-          <div className="hidden md:flex relative z-10 h-full flex-col px-12 overflow-hidden pt-12">
+      <>
+        {/* 桌面端布局 */}
+        <div className="hidden md:flex relative z-10 h-full flex-col px-12 overflow-hidden pt-12">
 
-            <div className="flex items-center justify-between mb-16 max-w-7xl mx-auto w-full border-b border-black/5 pb-6">
-              <div className="flex items-center gap-3">
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} className="w-14 h-14 rounded-full border border-black/5" alt="" />
-                ) : (
-                  <div className="w-14 h-14 rounded-full border border-black/5 bg-black/5 dark:bg-white/10" />
-                )}
-                <div>
-                  <h1 className="text-base font-black uppercase tracking-widest">{user.nickname}</h1>
-                  <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.3em]">Connected • WAVER</p>
+          <div className="flex items-center justify-between mb-16 max-w-7xl mx-auto w-full border-b border-black/5 pb-6">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => !user?.userId && useAuthStore.getState().openLoginModal()}>
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} className="w-14 h-14 rounded-full border border-black/5" alt="" />
+              ) : (
+                <div className="w-14 h-14 rounded-full border border-black/5 bg-black/5 dark:bg-white/10 flex items-center justify-center">
+                  <User size={24} className="opacity-30" />
                 </div>
+              )}
+              <div>
+                <h1 className="text-base font-black uppercase tracking-widest">{user?.nickname || 'GUEST'}</h1>
+                <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.3em]">{user?.userId ? 'Connected' : 'Tap to Login'} • WAVER</p>
               </div>
+            </div>
 
               <div className="flex items-center gap-3">
                 <div className="relative" ref={searchRef}>
@@ -927,8 +927,22 @@ export default function Home() {
               activeTab={activeTab} 
               onTabChange={setActiveTab} 
             />
+        </div>
+      </>
+
+      {/* Global Login Modal */}
+      {loginModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeLoginModal}>
+          <div onClick={(e) => e.stopPropagation()} className="relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={closeLoginModal}
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors"
+            >
+              <X size={16} />
+            </button>
+            <LoginSection />
           </div>
-        </>
+        </div>
       )}
     </main>
   );

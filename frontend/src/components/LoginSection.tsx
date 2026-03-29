@@ -6,8 +6,14 @@ import { Smartphone, QrCode, Send, LogIn, CheckCircle2, Loader2, RefreshCw } fro
 import { getQRKey, getQRImage, checkQRStatus, getAccountInfo, getUserDetail, loginWithPhone, sendCaptcha, loginWithCaptcha } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
+function closeLoginOnSuccess() {
+    setTimeout(() => {
+        useAuthStore.getState().closeLoginModal();
+    }, 1200);
+}
+
 export default function LoginSection() {
-    const [loginMethod, setLoginMethod] = useState<'qr' | 'phone'>('phone');
+    const [loginMethod, setLoginMethod] = useState<'qr' | 'phone'>('qr');
     // QR Code states
     const [qrKey, setQrKey] = useState<string | null>(null);
     const [qrImage, setQrImage] = useState<string | null>(null);
@@ -19,8 +25,10 @@ export default function LoginSection() {
     const [captcha, setCaptcha] = useState('');
     const [isSendingCaptcha, setIsSendingCaptcha] = useState(false);
     const [captchaSent, setCaptchaSent] = useState(false);
+    const [captchaCooldown, setCaptchaCooldown] = useState(0);
     const [phoneLoginStatus, setPhoneLoginStatus] = useState<'idle' | 'sending' | 'sent' | 'logging' | 'success' | 'error'>('idle');
     const [phoneLoginMessage, setPhoneLoginMessage] = useState('');
+    const [showRiskHint, setShowRiskHint] = useState(false);
 
     const { setUser, setToken } = useAuthStore();
 
@@ -82,6 +90,7 @@ export default function LoginSection() {
 
                             setUser(userData);
                             window.dispatchEvent(new CustomEvent('login-success', { detail: userData }));
+                            closeLoginOnSuccess();
 
                             if (!accountData.profile && userId) {
                                 try {
@@ -93,7 +102,6 @@ export default function LoginSection() {
                                             avatarUrl: detail.profile.avatarUrl
                                         };
                                         setUser(refinedUserData);
-                                        window.dispatchEvent(new CustomEvent('login-success', { detail: refinedUserData }));
                                     }
                                 } catch {
                                 }
@@ -106,11 +114,7 @@ export default function LoginSection() {
                             };
                             setUser(userData);
                             window.dispatchEvent(new CustomEvent('login-success', { detail: userData }));
-
-                            // 登录成功后刷新页面以更新UI
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1500); // 与提示信息显示时间一致
+                            closeLoginOnSuccess();
                         }
                     }
                 } catch (error) {
@@ -124,7 +128,12 @@ export default function LoginSection() {
         };
     }, [qrKey, qrStatus]);
 
-    // Phone login functions
+    useEffect(() => {
+        if (captchaCooldown <= 0) return;
+        const t = setTimeout(() => setCaptchaCooldown(captchaCooldown - 1), 1000);
+        return () => clearTimeout(t);
+    }, [captchaCooldown]);
+
     const handleSendCaptcha = async () => {
         if (!phone.trim()) {
             setPhoneLoginMessage('请输入手机号');
@@ -141,6 +150,7 @@ export default function LoginSection() {
                 setPhoneLoginStatus('sent');
                 setPhoneLoginMessage('验证码已发送，请查收短信');
                 setCaptchaSent(true);
+                setCaptchaCooldown(60);
             } else {
                 setPhoneLoginStatus('error');
                 setPhoneLoginMessage(res.message || '发送验证码失败');
@@ -220,13 +230,17 @@ export default function LoginSection() {
                     window.dispatchEvent(new CustomEvent('login-success', { detail: userData }));
                 }
 
-                // 登录成功后刷新页面以更新UI
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500); // 与提示信息显示时间一致
+                closeLoginOnSuccess();
             } else {
                 setPhoneLoginStatus('error');
-                setPhoneLoginMessage(res.message || '登录失败，请检查账号密码');
+                const isRisk = res.code === 10004 || res.code === 10003 ||
+                    (res.message && /安全风险|风控|频繁/.test(res.message));
+                if (isRisk) {
+                    setShowRiskHint(true);
+                    setPhoneLoginMessage(res.message || '当前登录存在安全风险，建议使用扫码登录');
+                } else {
+                    setPhoneLoginMessage(res.message || '登录失败，请检查账号密码');
+                }
             }
         } catch (error) {
             setPhoneLoginStatus('error');
@@ -239,23 +253,25 @@ export default function LoginSection() {
         setPhone('');
         setCaptcha('');
         setCaptchaSent(false);
+        setCaptchaCooldown(0);
         setPhoneLoginStatus('idle');
         setPhoneLoginMessage('');
+        setShowRiskHint(false);
     };
 
 
     return (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 p-4">
+        <div className="flex flex-col items-center justify-center p-6">
             <motion.div
                 initial={{ opacity: 0, scale: 0.8, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                className="mb-12 select-none"
+                className="mb-8 select-none"
             >
                 <img 
                     src="/logo.webp" 
                     alt="WAVER" 
-                    className="w-48 h-48 sm:w-64 sm:h-64 object-contain"
+                    className="w-32 h-32 sm:w-40 sm:h-40 object-contain"
                 />
             </motion.div>
             <div className="flex gap-2 mb-8 p-1 bg-black/5 dark:bg-white/5 rounded-full backdrop-blur-sm">
@@ -364,11 +380,13 @@ export default function LoginSection() {
                                     />
                                     <button
                                         onClick={handleSendCaptcha}
-                                        disabled={isSendingCaptcha || !phone.trim()}
-                                        className="px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-black dark:text-white rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                                        disabled={isSendingCaptcha || !phone.trim() || captchaCooldown > 0}
+                                        className="px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-black dark:text-white rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-2 min-w-[60px] justify-center"
                                     >
                                         {isSendingCaptcha ? (
                                             <Loader2 size={14} className="animate-spin" />
+                                        ) : captchaCooldown > 0 ? (
+                                            `${captchaCooldown}s`
                                         ) : captchaSent ? (
                                             '重发'
                                         ) : (
@@ -390,9 +408,24 @@ export default function LoginSection() {
                                 </button>
 
                                 {phoneLoginMessage && phoneLoginStatus === 'error' && (
-                                    <p className="text-center text-xs text-red-500 dark:text-red-400 font-medium">
-                                        {phoneLoginMessage}
-                                    </p>
+                                    <div className="text-center space-y-1.5">
+                                        <p className="text-xs text-red-500 dark:text-red-400 font-medium">
+                                            {phoneLoginMessage}
+                                        </p>
+                                        {showRiskHint && (
+                                            <button
+                                                onClick={() => {
+                                                    setLoginMethod('qr');
+                                                    setShowRiskHint(false);
+                                                    setPhoneLoginStatus('idle');
+                                                    setPhoneLoginMessage('');
+                                                }}
+                                                className="text-xs text-blue-500 dark:text-blue-400 hover:underline font-medium"
+                                            >
+                                                切换到扫码登录（推荐）
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>

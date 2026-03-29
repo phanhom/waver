@@ -11,7 +11,7 @@ import { fetchLyrics } from '@/lib/api';
 
 export default function Player() {
     const { currentSong, isPlaying, isLoading, volume, progress, setIsPlaying, setVolume, nextSong, prevSong, activeListeners, currentTime, duration, followingSid } = usePlayerStore();
-    const { user } = useAuthStore();
+    const { user, requireLogin } = useAuthStore();
     const [isExpanded, setIsExpanded] = useState(false);
     const [isShared, setIsShared] = useState(false);
     const [showLyricView, setShowLyricView] = useState(false);
@@ -340,11 +340,11 @@ export default function Player() {
                         <div className="flex items-center justify-between mt-4">
                             <button
                                 onClick={() => {
-                                    if (currentSong && user) {
-                                        broadcastWave(null, [currentSong], user);
-                                        setIsShared(true);
-                                        setTimeout(() => setIsShared(false), 2000);
-                                    }
+                                    if (!currentSong) return;
+                                    if (!requireLogin()) return;
+                                    broadcastWave(null, [currentSong], user);
+                                    setIsShared(true);
+                                    setTimeout(() => setIsShared(false), 2000);
                                 }}
                                 className={`p-2 rounded-full transition-all ${isShared ? 'bg-black dark:bg-white text-white dark:text-black' : 'text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'}`}
                             >

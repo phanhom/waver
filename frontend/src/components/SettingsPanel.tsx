@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Sun, Moon, Droplets, Grid, LogOut, Send } from 'lucide-react';
-import { usePlayerStore } from '@/lib/store';
-import { useAuthStore } from '@/lib/store';
+import { usePlayerStore, useAuthStore } from '@/lib/store';
 import { getSocket, ChatMessage, sendChatMessage } from '@/lib/socket';
 
 interface SettingsPanelProps {
@@ -20,7 +19,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     setMusicOceanDotDensity 
   } = usePlayerStore();
   
-  const { user, logout } = useAuthStore();
+  const { user, logout, requireLogin } = useAuthStore();
   const socket = getSocket();
   
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -67,15 +66,12 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   }, [socket]);
 
   const sendMessage = (message: string) => {
-    if (!message.trim() || !user) return;
-    
-    // 限制单次发送1000字符
+    if (!message.trim()) return;
+    if (!requireLogin()) return;
     if (message.length > 1000) {
       alert('消息长度不能超过1000字符');
       return;
     }
-    
-    const socket = getSocket();
     sendChatMessage(user, message.trim());
     setInputMessage('');
   };
