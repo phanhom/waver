@@ -3,6 +3,23 @@ import tomllib
 from functools import lru_cache
 from pathlib import Path
 
+
+def _project_root_for_data() -> Path:
+    """
+    本地开发：仓库根目录（与 backend/、frontend/ 同级），数据在 <repo>/.waver。
+    Docker 镜像内只有 backend 代码：根目录为 /app，数据在 /app/.waver（与 compose 挂载一致）。
+    可用环境变量 WAVER_PROJECT_ROOT 覆盖。
+    """
+    if os.getenv("WAVER_PROJECT_ROOT"):
+        return Path(os.getenv("WAVER_PROJECT_ROOT")).expanduser().resolve()
+    here = Path(__file__).resolve().parent  # .../app
+    backend_root = here.parent  # .../backend 或 /app
+    parent = backend_root.parent
+    if parent != backend_root and (parent / "frontend").is_dir():
+        return parent
+    return backend_root
+
+
 class Settings:
     DEBUG: bool = True
     PROJECT_NAME: str = "WAVER"
@@ -121,6 +138,33 @@ class Settings:
             self.RATE_LIMIT_API_QPS = int(os.getenv('RATE_LIMIT_API_QPS'))
         if os.getenv('RATE_LIMIT_CHAT_QPS'):
             self.RATE_LIMIT_CHAT_QPS = int(os.getenv('RATE_LIMIT_CHAT_QPS'))
+
+        self._resolve_storage_paths()
+
+    def _resolve_storage_paths(self) -> None:
+        """统一数据目录，避免「在 backend 下启动」时落到 backend/.waver，与 Docker 挂载的仓库根 .waver 不一致。"""
+        root = _project_root_for_data()
+        if os.getenv("WAVER_DATA_DIR"):
+            self.STORAGE_PATH = str(Path(os.getenv("WAVER_DATA_DIR")).expanduser().resolve())
+            if self.DB_URL.startswith("sqlite:///"):
+                self.DB_URL = f"sqlite:///{Path(self.STORAGE_PATH) / f'{self.DB_NAME}.db'}"
+            print(f"WAVER_DATA_DIR: data directory {self.STORAGE_PATH}")
+            return
+
+        raw = self.STORAGE_PATH
+        p = Path(raw)
+        self.STORAGE_PATH = str(p.resolve() if p.is_absolute() else (root / raw).resolve())
+
+        if self.DB_URL.startswith("sqlite:///"):
+            rest = self.DB_URL[len("sqlite:///") :]
+            dbp = Path(rest)
+            if dbp.is_absolute():
+                self.DB_URL = f"sqlite:///{dbp}"
+            else:
+                self.DB_URL = f"sqlite:///{(root / rest).resolve()}"
+        print(f"Data directory: {self.STORAGE_PATH}")
+        print(f"Database URL: {self.DB_URL}")
+
 
 @lru_cache()
 def get_settings():

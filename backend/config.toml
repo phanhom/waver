@@ -13,12 +13,12 @@ origins = ["*"]
 api_base = "http://localhost:19002"
 
 [storage]
-# All data stored in .waver folder
+# 相对路径相对于仓库根目录（与 backend、frontend 同级），即 <repo>/.waver；非相对则按原样使用
 path = ".waver"
 
 [database]
 enabled = true
-# SQLite database path (stored in .waver folder)
+# 相对路径同样相对于仓库根；解析逻辑见 app/config.py _resolve_storage_paths
 url = "sqlite:///./.waver/waver.db"
 name = "waver"
 
