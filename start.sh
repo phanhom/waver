@@ -1,27 +1,35 @@
 # WAVER Startup Script
 # Port Table:
-# Frontend: 18020
-# Backend:  18021
-# Netease:  18012
+# Frontend: 19000
+# Backend:  19001
+# Netease API: 19002 (Docker)
 
 # Kill all background processes on exit
 trap "kill 0" EXIT
 
 echo "🌊 Starting WAVER (Premium Redesign)..."
 
-# 1. Start Netease API
-if [ ! -d "./NeteaseCloudMusicApi" ]; then
-    echo "📡 NeteaseCloudMusicApi not found. Downloading maintained Enhanced version..."
-    git clone --depth 1 https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced.git NeteaseCloudMusicApi
-    echo "📦 Installing Netease API dependencies..."
-    (cd NeteaseCloudMusicApi && npm install --registry=https://registry.npmmirror.com)
+# 1. Start Netease API with Docker (always)
+echo "🎵 Starting Netease Cloud Music API (Docker) on port 19002..."
+if docker ps -a | grep -q waver-netease-api; then
+    echo "📦 Starting existing netease-api container..."
+    docker start waver-netease-api
+else
+    echo "📦 Creating and starting netease-api container..."
+    docker run -d \
+        --name waver-netease-api \
+        -p 19002:3000 \
+        -e PORT=3000 \
+        --restart unless-stopped \
+        moefurina/ncm-api
 fi
 
-echo "🎵 Starting Netease Cloud Music API on port 18012..."
-(cd NeteaseCloudMusicApi && PORT=18012 npm start) &
+# Wait for API to be ready
+echo "⏳ Waiting for Netease API to be ready..."
+sleep 3
 
 # 2. Start Backend
-echo "🚀 Starting FastAPI Backend on port 18021..."
+echo "🚀 Starting FastAPI Backend on port 19001..."
 if [ ! -d "backend/venv" ]; then
     echo "📦 Setting up Python virtual environment..."
     # Use pyenv specific version if available, otherwise default python3
@@ -42,17 +50,17 @@ else
 fi
 
 # Start backend server
-(cd backend && uvicorn app.main:sio_app --host 0.0.0.0 --port 18021 --reload) &
+(cd backend && uvicorn app.main:sio_app --host 0.0.0.0 --port 19001 --reload) &
 
 # 3. Start Frontend
-echo "💻 Starting Next.js Frontend on port 18020..."
+echo "💻 Starting Next.js Frontend on port 19000..."
 if [ ! -d "frontend/node_modules" ]; then
     echo "📦 Installing frontend dependencies..."
     (cd frontend && npm install --registry=https://registry.npmmirror.com)
 fi
 
 # Start frontend development server
-(cd frontend && PORT=18020 npm run dev) &
+(cd frontend && PORT=19000 npm run dev) &
 
 # Keep the script running
 wait

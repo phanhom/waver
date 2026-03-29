@@ -77,6 +77,17 @@ htmlcov/
 *.bak
 *.tmp
 *.temp
+
+# WAVER Data
+.waver/
+# Local chat exports; runtime stores chat in SQLite only
+**/chat_messages.json
+*.db
+*.sqlite
+*.sqlite3
+
+# NeteaseCloudMusicApi (use Docker image instead)
+NeteaseCloudMusicApi/
 *.pid
 *.seed
 *.pid.lock

@@ -3,7 +3,7 @@ services:
     image: moefurina/ncm-api
     container_name: waver-netease-api
     ports:
-      - "18012:3000"
+      - "19002:3000"
     environment:
       - PORT=3000
       - http_proxy=
@@ -15,27 +15,32 @@ services:
     restart: unless-stopped
 
   backend:
+    image: waver-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: waver-backend
     ports:
-      - "18021:18021"
+      - "19001:19001"
     volumes:
       - ./backend/config.toml:/app/config.toml
+      - ./.waver:/app/.waver
     restart: unless-stopped
     depends_on:
       - netease-api
+    environment:
+      - NETEASE_API_BASE=http://netease-api:3000
 
   frontend:
+    image: waver-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: waver-frontend
     ports:
-      - "18020:18020"
+      - "19000:19000"
     environment:
-      - PORT=18020
+      - PORT=19000
     depends_on:
       - backend
     restart: unless-stopped

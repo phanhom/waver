@@ -2,25 +2,22 @@
 name = "WAVER"
 debug = true
 host = "0.0.0.0"
-port = 18021
+port = 19001
 
 [cors]
 origins = ["*"]
 
 [netease]
-# For local development use: http://localhost:18012
-# For Docker environment use: http://netease-api:3000
-api_base = "http://localhost:18012"
+# Default: localhost for local development
+# Docker will override this via environment variable
+api_base = "http://localhost:19002"
 
 [storage]
-# Directory to store JSON files (legacy/backup)
-path = "."
-shared_waves_file = "shared_waves.json"
-chat_messages_file = "chat_messages.json"
+# All data stored in .waver folder
+path = ".waver"
 
 [database]
 enabled = true
-# Format: mysql+pymysql://user:password@host:port/dbname
-# For Docker (External DB on Host): mysql+pymysql://root:111@host.docker.internal:3306/waver
-url = "mysql+pymysql://root:111111@localhost:3306/waver"
+# SQLite database path (stored in .waver folder)
+url = "sqlite:///./.waver/waver.db"
 name = "waver"
