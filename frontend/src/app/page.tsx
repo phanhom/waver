@@ -5,20 +5,22 @@ import MusicOcean from '@/components/MusicOcean';
 import Player from '@/components/Player_v2';
 import Background from '@/components/Background';
 import LoginSection from '@/components/LoginSection';
+import ChatRoom from '@/components/ChatRoom';
 import { useAuthStore } from '@/lib/store';
-import { motion } from 'framer-motion';
-import { getSocket, initSocket, emitListeningStatus, broadcastWave, onStateUpdated, addComment, getComments, addResourceLike, removeResourceLike, getResourceLikes, cancelWave, likeWave, unlikeWave } from '@/lib/socket';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getSocket, initSocket, emitListeningStatus, broadcastWave, onStateUpdated, addComment, getComments, cancelWave, likeWave, unlikeWave } from '@/lib/socket';
 import { getAccountInfo, getUserDetail, getUserPlaylists, fetchPlaylistTracks, fetchSongs, searchSongs } from '@/lib/api';
 import { usePlayerStore } from '@/lib/store';
 import { playSong } from '@/lib/audio';
 import { applyRemoteState } from '@/lib/audio';
-import { MoreHorizontal, Plus, User, Link as LinkIcon, Radio, Disc, ChevronRight, Play, Search, X, ThumbsUp, MessageCircle, Send, Heart, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Plus, User, Disc, ChevronRight, Play, Search, X, MessageCircle, Send, Heart, Trash2 } from 'lucide-react';
 import { useRef } from 'react';
 import BottomNav from '@/components/BottomNav';
 import MobileHeader from '@/components/MobileHeader';
 import MobilePlayer from '@/components/MobilePlayer';
 import MobileSettingsPage from '@/components/MobileSettingsPage';
 
+/*
 function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) {
   const { user, requireLogin } = useAuthStore();
   const [comment, setComment] = useState('');
@@ -101,7 +103,6 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
         className="bg-white dark:bg-neutral-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header / Cover */}
         <div className="relative h-48 flex-shrink-0">
           <img 
             src={wave.playlist?.coverImgUrl || wave.song?.albumArt} 
@@ -127,7 +128,6 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
           </div>
         </div>
 
-        {/* Actions Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/5">
           <div className="flex items-center gap-4">
             <button 
@@ -144,7 +144,6 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
           </div>
         </div>
 
-        {/* Comments Section */}
         <div className="flex-grow overflow-y-auto p-6 space-y-4">
           {comments.length === 0 ? (
             <div className="text-center py-8 opacity-30">
@@ -166,7 +165,6 @@ function WaveDetailModal({ wave, onClose }: { wave: any; onClose: () => void }) 
           )}
         </div>
 
-        {/* Comment Input */}
         <form onSubmit={handleSendComment} className="p-4 border-t border-black/5 dark:border-white/5 bg-gray-50 dark:bg-white/[0.02]">
           <div className="relative">
             <input
@@ -220,12 +218,10 @@ function DiscoveryList() {
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-xl" />
             
-            {/* Type Indicator */}
             <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
               {wave.playlist ? <Disc size={12} /> : <Radio size={12} />}
             </div>
 
-            {/* User Avatar */}
             <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <img 
                 src={wave.user?.avatarUrl} 
@@ -246,6 +242,7 @@ function DiscoveryList() {
     </>
   );
 }
+*/
 
 function LivingList() {
   const { activeListeners, followingSid, setFollowingSid, setCurrentSong } = usePlayerStore();
@@ -435,40 +432,43 @@ function LibrarySection() {
 
   const handleSharePlaylist = async (p: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!requireLogin()) return;
-    let currentTracks = tracks;
+    // if (!requireLogin()) return;
+    // let currentTracks = tracks;
 
-    // If tracks for THIS playlist aren't loaded, fetch them first
-    if (p.id === selectedPlaylist?.id && tracks.length > 0) {
-      // Already have tracks
-      currentTracks = tracks;
-    } else {
-      // Need to fetch tracks
-      try {
-        const data = await fetchPlaylistTracks(p.id, token || undefined);
-        const rawTracks = data?.songs || data?.playlist?.tracks || [];
-        if (rawTracks.length > 0) {
-          currentTracks = rawTracks.map((t: any) => ({
-            id: String(t.id),
-            name: t.name,
-            artist: t.ar?.[0]?.name || 'Unknown',
-            album: t.al?.name || '',
-            albumArt: t.al?.picUrl || ''
-          }));
-        }
-      } catch (err) {
-        console.error(err);
-        return;
-      }
-    }
+    // // If tracks for THIS playlist aren't loaded, fetch them first
+    // if (p.id === selectedPlaylist?.id && tracks.length > 0) {
+    //   // Already have tracks
+    //   currentTracks = tracks;
+    // } else {
+    //   // Need to fetch tracks
+    //   try {
+    //     const data = await fetchPlaylistTracks(p.id, token || undefined);
+    //     const rawTracks = data?.songs || data?.playlist?.tracks || [];
+    //     if (rawTracks.length > 0) {
+    //       currentTracks = rawTracks.map((t: any) => ({
+    //         id: String(t.id),
+    //         name: t.name,
+    //         artist: t.ar?.[0]?.name || 'Unknown',
+    //         album: t.al?.name || '',
+    //         albumArt: t.al?.picUrl || ''
+    //       }));
+    //     }
+    //   } catch (err) {
+    //     console.error(err);
+    //     return;
+    //   }
+    // }
 
-    // Now broadcast
-    broadcastWave(p, currentTracks, user);
+    // // Now broadcast
+    // broadcastWave(p, currentTracks, user);
+    console.log('Share functionality is disabled');
   };
 
   const handleShareSong = (track: any) => {
-    if (!requireLogin()) return;
-    broadcastWave(null, [track], user);
+    // if (!requireLogin()) return;
+    // broadcastWave(null, [track], user);
+    // setContextMenu(null);
+    console.log('Share functionality is disabled');
     setContextMenu(null);
   };
 
@@ -510,7 +510,7 @@ function LibrarySection() {
                 <h3 className="font-bold text-[13px] uppercase truncate">{p.name}</h3>
                 <p className="text-[12px] opacity-40 uppercase">{p.trackCount} Tracks</p>
               </div>
-              <MoreHorizontal size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleSharePlaylist(p, e)} />
+              {/* <MoreHorizontal size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleSharePlaylist(p, e)} /> */}
             </div>
           ))}
         </div>
@@ -523,12 +523,12 @@ function LibrarySection() {
             <img src={selectedPlaylist.coverImgUrl} className="w-12 h-12 rounded-xl border border-black/10 dark:border-white/10" alt="" />
             <div className="flex-grow">
               <h2 className="font-black text-xs uppercase tracking-tight">{selectedPlaylist.name}</h2>
-              <button
+              {/* <button
                 onClick={(e) => handleSharePlaylist(selectedPlaylist, e)}
                 className="mt-1 text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 border border-black/10 dark:border-white/10 rounded-full hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all"
               >
                 Share All
-              </button>
+              </button> */}
             </div>
           </div>
           <div className="space-y-1 max-h-[50vh] overflow-y-auto no-scrollbar">
@@ -558,13 +558,14 @@ function LibrarySection() {
           style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
+          <div className="px-4 py-2 text-[10px] font-black uppercase tracking-widest opacity-20">Actions</div>
+          {/* <button
             onClick={() => handleShareSong(contextMenu.track)}
             className="w-full px-4 py-2 text-left text-[10px] font-black uppercase tracking-widest hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex items-center gap-2"
           >
             <Radio size={12} />
             <span>Share</span>
-          </button>
+          </button> */}
         </div>
       )}
     </div>
@@ -840,32 +841,38 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-12 max-w-7xl mx-auto w-full">
-              {/* Left: Discovery */}
-              <div className="col-span-4 border-r border-black/5 pr-12">
-                <div className="flex items-center gap-3 mb-8">
+            <div className={`grid grid-cols-12 gap-12 max-w-7xl mx-auto w-full flex-1 min-h-0 transition-all duration-300 ${currentSong ? 'pb-32' : 'pb-12'}`}>
+              {/* Left: ChatRoom */}
+              <div className="col-span-4 border-r border-black/5 pr-12 flex flex-col h-full">
+                <div className="flex items-center gap-3 mb-8 flex-shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
-                  <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Shared Waves</h2>
+                  <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Chat Room</h2>
                 </div>
-                <DiscoveryList />
+                <div className="flex-1 min-h-0">
+                  <ChatRoom />
+                </div>
               </div>
 
               {/* Center: Live Feed */}
-              <div className="col-span-4">
-                <div className="flex items-center gap-3 mb-8">
+              <div className="col-span-4 flex flex-col h-full">
+                <div className="flex items-center gap-3 mb-8 flex-shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-black/20" />
                   <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Live Now</h2>
                 </div>
-                <LivingList />
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                  <LivingList />
+                </div>
               </div>
 
               {/* Right: Library */}
-              <div className="col-span-4 border-l border-black/5 pl-12">
-                <div className="flex items-center gap-3 mb-8">
+              <div className="col-span-4 border-l border-black/5 pl-12 flex flex-col h-full">
+                <div className="flex items-center gap-3 mb-8 flex-shrink-0">
                   <Plus size={16} className="opacity-20" />
                   <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Library</h2>
                 </div>
-                <LibrarySection />
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                  <LibrarySection />
+                </div>
               </div>
             </div>
 
@@ -886,36 +893,44 @@ export default function Home() {
             />
 
             {/* 移动端内容区域 */}
-            <div className="flex-1 overflow-y-auto pt-20 pb-40 px-4">
+            <div className={`flex-1 min-h-0 pt-20 px-4 flex flex-col transition-all duration-300 ${currentSong ? 'pb-36' : 'pb-24'}`}>
               {activeTab === 'live' && (
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center gap-3 mb-6 flex-shrink-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-black dark:bg-white animate-pulse" />
                     <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Live Now</h2>
                   </div>
-                  <LivingList />
+                  <div className="flex-1 overflow-y-auto no-scrollbar">
+                    <LivingList />
+                  </div>
                 </div>
               )}
               {activeTab === 'waves' && (
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center gap-3 mb-6 flex-shrink-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-black dark:bg-white animate-pulse" />
-                    <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Shared Waves</h2>
+                    <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Chat Room</h2>
                   </div>
-                  <DiscoveryList />
+                  <div className="flex-1 min-h-0">
+                    <ChatRoom />
+                  </div>
                 </div>
               )}
               {activeTab === 'library' && (
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center gap-3 mb-6 flex-shrink-0">
                     <Plus size={16} className="opacity-20" />
                     <h2 className="text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Library</h2>
                   </div>
-                  <LibrarySection />
+                  <div className="flex-1 overflow-y-auto no-scrollbar">
+                    <LibrarySection />
+                  </div>
                 </div>
               )}
               {activeTab === 'settings' && (
-                <MobileSettingsPage />
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                  <MobileSettingsPage />
+                </div>
               )}
             </div>
 

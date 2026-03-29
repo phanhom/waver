@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Radio, Waves, Library, Settings } from 'lucide-react';
+import { Radio, MessageSquare, Library, Settings } from 'lucide-react';
 
 interface BottomNavProps {
     activeTab: 'live' | 'waves' | 'library' | 'settings';
@@ -11,7 +11,7 @@ interface BottomNavProps {
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     const tabs = [
         { id: 'live' as const, label: 'Live Now', icon: Radio },
-        { id: 'waves' as const, label: 'Waves', icon: Waves },
+        { id: 'waves' as const, label: 'Chat', icon: MessageSquare },
         { id: 'library' as const, label: 'Library', icon: Library },
         { id: 'settings' as const, label: 'Settings', icon: Settings },
     ];

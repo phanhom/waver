@@ -338,7 +338,7 @@ export default function Player() {
 
                         {/* Extra Controls (Broadcast/Volume) */}
                         <div className="flex items-center justify-between mt-4">
-                            <button
+                            {/* <button
                                 onClick={() => {
                                     if (!currentSong) return;
                                     if (!requireLogin()) return;
@@ -349,7 +349,8 @@ export default function Player() {
                                 className={`p-2 rounded-full transition-all ${isShared ? 'bg-black dark:bg-white text-white dark:text-black' : 'text-black/20 dark:text-white/20 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'}`}
                             >
                                 <Radio size={18} className={isShared ? 'animate-pulse' : ''} />
-                            </button>
+                            </button> */}
+                            <div className="flex-1" />
 
                             <div className="flex items-center gap-3 w-32">
                                 <Volume2 size={14} className="text-black/20 dark:text-white/20" />

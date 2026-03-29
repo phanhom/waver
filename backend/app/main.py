@@ -8,6 +8,8 @@ from .database import init_db, SessionLocal
 from .models import SharedWave, ChatMessage, Comment
 from sqlalchemy import desc
 import os
+from .services.ai import ai_service
+from .rate_limiting import ApiRateLimitMiddleware, allow_chat_message
 
 settings = get_settings()
 
@@ -24,6 +26,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(
+    ApiRateLimitMiddleware,
+    enabled=settings.RATE_LIMIT_ENABLED,
+    api_qps=settings.RATE_LIMIT_API_QPS,
 )
 
 # Create Socket.IO server
@@ -203,12 +210,31 @@ async def update_state(sid, data):
 
 @sio.event
 async def chat_message(sid, data):
+    if settings.RATE_LIMIT_ENABLED and not allow_chat_message(sid, settings.RATE_LIMIT_CHAT_QPS):
+        await sio.emit('chat_error', {'message': '发送过于频繁，请稍后再试。'}, to=sid)
+        return
+
+    message_text = data.get('message', '')
+    
+    # 1. Length limit check (200 chars)
+    if len(message_text) > 200:
+        print(f"Chat message from {sid} blocked: too long ({len(message_text)} chars)")
+        return
+
+    # 2. AI Moderation check
+    is_allowed = await ai_service.moderate_content(message_text)
+    if not is_allowed:
+        print(f"Chat message from {sid} blocked by AI moderation: {message_text}")
+        # Optionally notify the user
+        await sio.emit('chat_error', {'message': '您的消息包含违规内容，已被系统拦截。'}, to=sid)
+        return
+
     db = get_db_session()
     try:
         new_msg = ChatMessage(
             user_id=str(data.get('user', {}).get('userId')),
             user_data=data.get('user'),
-            message=data.get('message'),
+            message=message_text,
             timestamp=data.get('timestamp')
         )
         db.add(new_msg)

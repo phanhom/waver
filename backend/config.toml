@@ -21,3 +21,21 @@ enabled = true
 # SQLite database path (stored in .waver folder)
 url = "sqlite:///./.waver/waver.db"
 name = "waver"
+
+# 聊天审核：OpenAI 兼容接口即可（OpenAI / 硅基流动 / DeepSeek 等）
+# 硅基流动示例：api_base = "https://api.siliconflow.cn/v1"
+# 模型名与控制台一致，例如：Qwen/Qwen3.5-4B
+[ai]
+enabled = false
+api_base = "https://api.siliconflow.cn/v1"
+api_key = ""
+model_name = "Qwen/Qwen3.5-4B"
+moderation_prompt = "You are a chat moderator. If the following message contains illegal, offensive, or harmful content, output 'BLOCK'. Otherwise, output 'PASS'. Only output one of these two words. Message: "
+
+# 防刷 / 防滥用：基于 limits（slowapi 同源）的滑动窗口限流
+# api_qps：每个 IP 对 /api/* REST 每秒最大请求数（/socket.io 与文档路径不计入）
+# chat_qps：每个 Socket 连接每秒最多几条聊天（防止绕过前端连发）
+[rate_limit]
+enabled = true
+api_qps = 20
+chat_qps = 5
