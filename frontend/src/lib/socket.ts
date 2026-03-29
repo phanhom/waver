@@ -1,19 +1,38 @@
 import { io, Socket } from 'socket.io-client';
 import type { PlayerStore } from './store';
 
-// 动态获取 Socket URL，支持局域网访问
-const getSocketUrl = () => {
-    if (process.env.NEXT_PUBLIC_SOCKET_URL && process.env.NEXT_PUBLIC_SOCKET_URL !== 'undefined') {
-        return process.env.NEXT_PUBLIC_SOCKET_URL;
-    }
-    if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        return `http://${hostname}:19001`;
-    }
-    return 'http://localhost:19001';
-};
+const DEFAULT_BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || '19001';
 
-const SOCKET_URL = getSocketUrl();
+/**
+ * 必须在浏览器里惰性解析：避免 SSR / 构建阶段把错误的 URL 固化进包。
+ * 若 NEXT_PUBLIC_SOCKET_URL 误指到「与当前页面相同端口」（前端无 Socket.IO），则改连后端端口。
+ */
+function resolveSocketUrl(): string {
+    const fromEnv = process.env.NEXT_PUBLIC_SOCKET_URL;
+    if (fromEnv && fromEnv !== 'undefined') {
+        try {
+            const u = new URL(fromEnv);
+            if (typeof window !== 'undefined') {
+                const pageHost = window.location.hostname;
+                const pagePort =
+                    window.location.port ||
+                    (window.location.protocol === 'https:' ? '443' : '80');
+                const socketPort = u.port || (u.protocol === 'https:' ? '443' : '80');
+                // 配置的端口与当前页面端口相同，且不是后端端口：多为把 Socket 指到了 Next 前端
+                if (socketPort === pagePort && pagePort !== DEFAULT_BACKEND_PORT) {
+                    return `http://${pageHost}:${DEFAULT_BACKEND_PORT}`;
+                }
+            }
+            return fromEnv.replace(/\/$/, '');
+        } catch {
+            return fromEnv;
+        }
+    }
+    if (typeof window === 'undefined') {
+        return `http://localhost:${DEFAULT_BACKEND_PORT}`;
+    }
+    return `http://${window.location.hostname}:${DEFAULT_BACKEND_PORT}`;
+}
 
 let socket: Socket | null = null;
 
@@ -45,7 +64,7 @@ function onStateUpdatedEvent(payload: StateUpdatedPayload) {
 export function getSocket(): Socket | null {
     if (typeof window === 'undefined') return null;
     if (!socket) {
-        socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+        socket = io(resolveSocketUrl(), { transports: ['websocket', 'polling'] });
     }
     return socket;
 }

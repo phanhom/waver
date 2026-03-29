@@ -39,6 +39,9 @@ services:
     container_name: waver-frontend
     ports:
       - "19000:19000"
+    # 前端页面只提供 Next；Socket.IO 在后端 19001。不要把 NEXT_PUBLIC_SOCKET_URL 指向前端端口，
+    # 否则浏览器会请求 http://<前端>:<port>/socket.io 并得到 connection refused。
+    # 留空即可：客户端会连 http://<当前访问的 hostname>:19001
     environment:
       - PORT=19000
     depends_on:
